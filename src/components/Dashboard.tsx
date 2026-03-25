@@ -11,37 +11,39 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
-  // Varsayılan değer (API başarısız olursa bu görünür)
+  // Varsayılan değer (Hata durumunda veya yüklenirken bu görünür)
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33'); 
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
-  // TCMB "Döviz Satış" Kurunu Truncgil API üzerinden çekme
+  // CORS engelini aşan proxy üzerinden TCMB Döviz Satış kurunu çekme
   useEffect(() => {
     const fetchTcmbRate = async () => {
       try {
-        // Truncgil API daha stabil ve CORS dostudur
-        const response = await fetch('https://finans.truncgil.com/today.json');
-        if (!response.ok) throw new Error('API yanıt vermedi');
+        // AllOrigins proxy kullanarak CORS engelini bypass ediyoruz
+        const targetUrl = encodeURIComponent('https://finans.truncgil.com/today.json');
+        const response = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
         
-        const json = await response.json();
+        if (!response.ok) throw new Error('Proxy yanıt vermedi');
         
-        // Truncgil API yapısında dolar "ABD DOLARI" anahtarı altındadır
-        // "Satış" değeri Döviz Satış kurunu temsil eder
+        const dataWrapper = await response.json();
+        // Proxy'den gelen veri 'contents' içinde string olarak gelir, onu JSON'a çeviriyoruz
+        const json = JSON.parse(dataWrapper.contents);
+        
         const usdData = json["ABD DOLARI"];
         
-        if (usdData && usdData["Satış"]) {
-          const rawRate = usdData["Satış"];
-          // Gelen veri string ise (örn: "44.3512") float'a çevirip düzenliyoruz
+        // "Satış" değeri Döviz Satış kurunu temsil eder
+        if (usdData && (usdData["Satış"] || usdData["Satis"])) {
+          const rawRate = usdData["Satış"] || usdData["Satis"];
           const rate = parseFloat(String(rawRate).replace(',', '.'));
-          if (!isNaN(rate)) {
+          
+          if (!isNaN(rate) && rate > 0) {
             setUsdRateStr(rate.toFixed(2).replace('.', ','));
-            console.log("Güncel Kur Başarıyla Çekildi:", rate);
           }
         }
       } catch (error) {
-        console.error("Kur çekilirken hata oluştu, varsayılan değer kullanılıyor:", error);
+        console.error("Kur çekilirken hata oluştu (CORS veya Veri Hatası):", error);
       }
     };
 
@@ -85,7 +87,7 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase">Müşteri</div></div>
+          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase font-bold tracking-tight">Müşteri</div></div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 truncate">{totalCustomers}</div>
         </div>
 
