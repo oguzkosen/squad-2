@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'motion/react';
 import { Users, CreditCard, CalendarDays, Activity, MinusCircle, DollarSign } from 'lucide-react';
@@ -13,24 +13,24 @@ interface DashboardProps {
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33');
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
-  useEffect(() => {
-  const fetchRate = async () => {
-    try {
-      // Frankfurter ücretsiz ve hızlı bir kur API'sıdır
-      const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
-      const data = await response.json();
-      if (data.rates && data.rates.TRY) {
-        // Gelen kuru 44,33 formatına çevirip kaydediyoruz
-        setUsdRateStr(data.rates.TRY.toFixed(2).replace('.', ','));
-      }
-    } catch (error) {
-      console.error("Dolar kuru çekilemedi:", error);
-    }
-  };
-  fetchRate();
-}, []);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
+
+  // Otomatik Dolar Kuru Çekme
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
+        const json = await response.json();
+        if (json.rates && json.rates.TRY) {
+          setUsdRateStr(json.rates.TRY.toFixed(2).replace('.', ','));
+        }
+      } catch (error) {
+        console.error("Kur çekilemedi, varsayılan değer kullanılıyor:", error);
+      }
+    };
+    fetchRate();
+  }, []);
 
   const chartData = useMemo(() => {
     const counts: Record<string, number> = { 'Healthy': 0, 'Parking': 0, 'Churn': 0, 'Legal': 0 };
@@ -68,26 +68,38 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Her kartta font boyutu dinamik: Mobilde text-xl, Büyük ekranda text-3xl */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase">Toplam Müşteri</div></div>
-          <div className="text-3xl font-light text-slate-900">{totalCustomers}</div>
+          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase">Müşteri</div></div>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 truncate">{totalCustomers}</div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><CreditCard className="w-5 h-5 text-emerald-500" /><div className="text-xs font-semibold uppercase">Toplam Çatı Bütçe</div></div>
-          <div className="text-3xl font-light text-slate-900 truncate">{formatCurrency(totalLimit, isUsdActive, usdRate)}</div>
+          <div className="flex items-center gap-3 text-slate-500"><CreditCard className="w-5 h-5 text-emerald-500" /><div className="text-xs font-semibold uppercase">Çatı Bütçe</div></div>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
+            {formatCurrency(totalLimit, isUsdActive, usdRate)}
+          </div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><MinusCircle className="w-5 h-5 text-rose-500" /><div className="text-xs font-semibold uppercase">Toplam Kullanılan</div></div>
-          <div className="text-3xl font-light text-slate-900 truncate">{formatCurrency(totalUsed, isUsdActive, usdRate)}</div>
+          <div className="flex items-center gap-3 text-slate-500"><MinusCircle className="w-5 h-5 text-rose-500" /><div className="text-xs font-semibold uppercase">Kullanılan</div></div>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
+            {formatCurrency(totalUsed, isUsdActive, usdRate)}
+          </div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><CalendarDays className="w-5 h-5 text-blue-500" /><div className="text-xs font-semibold uppercase">Ay Sonu Limit</div></div>
-          <div className="text-3xl font-light text-slate-900 truncate">{formatCurrency(totalAySonu, isUsdActive, usdRate)}</div>
+          <div className="flex items-center gap-3 text-slate-500"><CalendarDays className="w-5 h-5 text-blue-500" /><div className="text-xs font-semibold uppercase">Ay Sonu</div></div>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
+            {formatCurrency(totalAySonu, isUsdActive, usdRate)}
+          </div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Activity className="w-5 h-5 text-violet-500" /><div className="text-xs font-semibold uppercase">Ort. Ödeme Skoru</div></div>
-          <div className="text-3xl font-light text-slate-900">{averageScore}</div>
+          <div className="flex items-center gap-3 text-slate-500"><Activity className="w-5 h-5 text-violet-500" /><div className="text-xs font-semibold uppercase">Ödeme Skoru</div></div>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900">{averageScore}</div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3"><DollarSign className="w-5 h-5 text-amber-500" /><div className="text-xs font-semibold uppercase">Dolar</div></div>
@@ -95,7 +107,7 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
               <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${isUsdActive ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
-          <input type="number" value={usdRateStr} onChange={(e) => setUsdRateStr(e.target.value)} className="text-3xl font-light bg-transparent border-b border-slate-200 focus:outline-none" />
+          <input type="text" value={usdRateStr} onChange={(e) => setUsdRateStr(e.target.value)} className="text-xl sm:text-2xl lg:text-3xl font-light bg-transparent border-b border-slate-200 focus:outline-none w-full" />
         </div>
       </div>
 
@@ -104,18 +116,18 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
         <div className="h-[360px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={110} outerRadius={140} paddingAngle={4} dataKey="value" stroke="none" onClick={(data) => onSelectSegment(data.name)}>
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={100} outerRadius={130} paddingAngle={4} dataKey="value" stroke="none" onClick={(data) => onSelectSegment(data.name)}>
                 {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex flex-wrap justify-center gap-6 mt-8">
+        <div className="flex flex-wrap justify-center gap-4 mt-8">
           {chartData.map((item) => (
-            <div key={item.name} onClick={() => onSelectSegment(item.name)} className="flex items-center gap-2 cursor-pointer group">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">{item.name}</span>
+            <div key={item.name} onClick={() => onSelectSegment(item.name)} className="flex items-center gap-2 cursor-pointer group bg-slate-50 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+              <span className="text-xs font-medium text-slate-600 group-hover:text-slate-900">{item.name} ({item.value})</span>
             </div>
           ))}
         </div>
