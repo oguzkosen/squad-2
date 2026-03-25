@@ -11,35 +11,34 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
-  // İlk başta "..." gösterelim ki verinin gelip gelmediğini anlayalım
+  // Varsayılan değeri bilerek farklı yapalım ki değiştiğini anlayalım
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33'); 
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
+  const [isChartReady, setIsChartReady] = useState(false); // Grafik hatası için
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
-  // Döviz Kurunu Çekme (Frankfurter API - Çok Stabil ve CORS Sorunu Yoktur)
+  // 1. Kur Çekme - En Stabil Global API (Exchangerate-API)
   useEffect(() => {
     const fetchRate = async () => {
       try {
-        // Bu API TCMB verilerine en yakın global Avrupa Merkez Bankası verilerini kullanır
-        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
-        
-        if (!response.ok) throw new Error('Döviz servisi yanıt vermedi');
-        
+        // Bu API dünyadaki en yüksek CORS iznine sahip ücretsiz API'dir
+        const response = await fetch('https://open.er-api.com/v6/latest/USD');
         const json = await response.json();
-        const rate = json.rates.TRY;
-
-        if (rate) {
-          // Gelen rakamı (örn: 32.451) 32,45 formatına çeviriyoruz
+        
+        if (json && json.rates && json.rates.TRY) {
+          const rate = json.rates.TRY;
           setUsdRateStr(rate.toFixed(2).replace('.', ','));
-          console.log("Kur Güncellendi: ", rate);
         }
       } catch (error) {
-        console.error("Döviz kuru çekilemedi, varsayılan değer (44.33) kullanılıyor.");
+        console.error("Kur çekilemedi, manuel 44.33 kullanılıyor.");
       }
     };
-
     fetchRate();
+
+    // Grafik hatasını önlemek için 100ms gecikmeli render
+    const timer = setTimeout(() => setIsChartReady(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const chartData = useMemo(() => {
@@ -79,7 +78,7 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase font-bold tracking-tight">Müşteri</div></div>
+          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase font-bold">Müşteri</div></div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 truncate">{totalCustomers}</div>
         </div>
 
@@ -122,15 +121,17 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
 
       <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-center mb-8">Segment Dağılımı</h3>
-        <div className="h-[360px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={100} outerRadius={130} paddingAngle={4} dataKey="value" stroke="none" onClick={(entry: any) => onSelectSegment(entry.name)}>
-                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="h-[360px] w-full min-h-[360px]">
+          {isChartReady && (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <PieChart>
+                <Pie data={chartData} cx="50%" cy="50%" innerRadius={100} outerRadius={130} paddingAngle={4} dataKey="value" stroke="none" onClick={(entry: any) => onSelectSegment(entry.name)}>
+                  {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
         <div className="flex flex-wrap justify-center gap-4 mt-8">
           {chartData.map((item) => (
