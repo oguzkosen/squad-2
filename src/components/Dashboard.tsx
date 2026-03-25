@@ -11,25 +11,31 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
-  const [usdRateStr, setUsdRateStr] = useState<string>('44.33');
+  // Varsayılan değer 44,33 olarak güncellendi
+  const [usdRateStr, setUsdRateStr] = useState<string>('44.33'); 
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
-  // Otomatik Dolar Kuru Çekme
+  // TCMB Kurunu Hasan Adıgüzel API üzerinden çekiyoruz
   useEffect(() => {
-    const fetchRate = async () => {
+    const fetchTcmbRate = async () => {
       try {
-        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
+        const response = await fetch('https://hasanadiguzel.com.tr/api/kurgetir');
         const json = await response.json();
-        if (json.rates && json.rates.TRY) {
-          setUsdRateStr(json.rates.TRY.toFixed(2).replace('.', ','));
+        
+        // API içindeki TCMB_AnlikKurArsiv dizisinden USD'yi buluyoruz
+        const usdData = json.TCMB_AnlikKurArsiv.find((item: any) => item.CurrencyName === "US DOLLAR");
+        
+        if (usdData && usdData.ForexSelling) {
+          const rate = parseFloat(usdData.ForexSelling);
+          setUsdRateStr(rate.toFixed(2).replace('.', ','));
         }
       } catch (error) {
-        console.error("Kur çekilemedi, varsayılan değer kullanılıyor:", error);
+        console.error("TCMB Kuru çekilemedi, varsayılan değer (44,33) kullanılıyor:", error);
       }
     };
-    fetchRate();
+    fetchTcmbRate();
   }, []);
 
   const chartData = useMemo(() => {
@@ -37,101 +43,4 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
     let others = 0;
 
     data.forEach((m) => {
-      const s = m.statu ? String(m.statu).trim().toLowerCase() : '';
-      if (s.includes('health')) counts['Healthy']++;
-      else if (s.includes('park')) counts['Parking']++;
-      else if (s.includes('churn')) counts['Churn']++;
-      else if (s.includes('legal')) counts['Legal']++;
-      else others++;
-    });
-
-    const result = [
-      { name: 'Healthy', value: counts['Healthy'], color: '#10b981' },
-      { name: 'Parking', value: counts['Parking'], color: '#f59e0b' },
-      { name: 'Churn', value: counts['Churn'], color: '#f97316' },
-      { name: 'Legal', value: counts['Legal'], color: '#ef4444' },
-    ];
-    if (others > 0) result.push({ name: 'Diğer', value: others, color: '#64748b' });
-    return result.filter(item => item.value > 0);
-  }, [data]);
-
-  const totalCustomers = data.length;
-  const totalLimit = data.reduce((acc, curr) => acc + parseToFloat(curr.catiLimit), 0);
-  const totalUsed = data.reduce((acc, curr) => acc + parseToFloat(curr.kullanilanLimit), 0);
-  const totalAySonu = data.reduce((acc, curr) => acc + parseToFloat(curr.aySonuLimit), 0);
-  
-  const averageScore = useMemo(() => {
-    const scores = data.map(m => parseFloat(String(m.yeniVeri2).replace(',', '.'))).filter(s => !isNaN(s));
-    return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-  }, [data]);
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* Her kartta font boyutu dinamik: Mobilde text-xl, Büyük ekranda text-3xl */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Users className="w-5 h-5" /><div className="text-xs font-semibold uppercase">Müşteri</div></div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 truncate">{totalCustomers}</div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><CreditCard className="w-5 h-5 text-emerald-500" /><div className="text-xs font-semibold uppercase">Çatı Bütçe</div></div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
-            {formatCurrency(totalLimit, isUsdActive, usdRate)}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><MinusCircle className="w-5 h-5 text-rose-500" /><div className="text-xs font-semibold uppercase">Kullanılan</div></div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
-            {formatCurrency(totalUsed, isUsdActive, usdRate)}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><CalendarDays className="w-5 h-5 text-blue-500" /><div className="text-xs font-semibold uppercase">Ay Sonu</div></div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900 whitespace-nowrap overflow-hidden">
-            {formatCurrency(totalAySonu, isUsdActive, usdRate)}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center gap-3 text-slate-500"><Activity className="w-5 h-5 text-violet-500" /><div className="text-xs font-semibold uppercase">Ödeme Skoru</div></div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-light text-slate-900">{averageScore}</div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3"><DollarSign className="w-5 h-5 text-amber-500" /><div className="text-xs font-semibold uppercase">Dolar</div></div>
-            <button onClick={() => setIsUsdActive(!isUsdActive)} className={`h-6 w-11 rounded-full ${isUsdActive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-              <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${isUsdActive ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-          <input type="text" value={usdRateStr} onChange={(e) => setUsdRateStr(e.target.value)} className="text-xl sm:text-2xl lg:text-3xl font-light bg-transparent border-b border-slate-200 focus:outline-none w-full" />
-        </div>
-      </div>
-
-      <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-center mb-8">Segment Dağılımı</h3>
-        <div className="h-[360px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={100} outerRadius={130} paddingAngle={4} dataKey="value" stroke="none" onClick={(data) => onSelectSegment(data.name)}>
-                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex flex-wrap justify-center gap-4 mt-8">
-          {chartData.map((item) => (
-            <div key={item.name} onClick={() => onSelectSegment(item.name)} className="flex items-center gap-2 cursor-pointer group bg-slate-50 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-xs font-medium text-slate-600 group-hover:text-slate-900">{item.name} ({item.value})</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+      const s = m.statu ? String(m.st
