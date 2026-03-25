@@ -18,7 +18,6 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
   useEffect(() => {
-    // Kur Çekme - Global CORS dostu API
     const fetchRate = async () => {
       try {
         const response = await fetch('https://open.er-api.com/v6/latest/USD');
@@ -32,7 +31,6 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
     };
     fetchRate();
 
-    // Grafik genişlik hatası için gecikme
     const timer = setTimeout(() => setIsChartReady(true), 150);
     return () => clearTimeout(timer);
   }, []);
