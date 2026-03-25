@@ -25,6 +25,8 @@ export default function App() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+}, [view]);
     fetch(API_URL)
       .then((res) => res.json())
       .then((json) => {
