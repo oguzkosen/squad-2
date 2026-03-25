@@ -13,6 +13,22 @@ interface DashboardProps {
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33');
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
+  useEffect(() => {
+  const fetchRate = async () => {
+    try {
+      // Frankfurter ücretsiz ve hızlı bir kur API'sıdır
+      const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
+      const data = await response.json();
+      if (data.rates && data.rates.TRY) {
+        // Gelen kuru 44,33 formatına çevirip kaydediyoruz
+        setUsdRateStr(data.rates.TRY.toFixed(2).replace('.', ','));
+      }
+    } catch (error) {
+      console.error("Dolar kuru çekilemedi:", error);
+    }
+  };
+  fetchRate();
+}, []);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
