@@ -11,43 +11,35 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
-  // Varsayılan değer (Hata durumunda veya yüklenirken bu görünür)
+  // İlk başta "..." gösterelim ki verinin gelip gelmediğini anlayalım
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33'); 
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
-  // CORS engelini aşan proxy üzerinden TCMB Döviz Satış kurunu çekme
+  // Döviz Kurunu Çekme (Frankfurter API - Çok Stabil ve CORS Sorunu Yoktur)
   useEffect(() => {
-    const fetchTcmbRate = async () => {
+    const fetchRate = async () => {
       try {
-        // AllOrigins proxy kullanarak CORS engelini bypass ediyoruz
-        const targetUrl = encodeURIComponent('https://finans.truncgil.com/today.json');
-        const response = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
+        // Bu API TCMB verilerine en yakın global Avrupa Merkez Bankası verilerini kullanır
+        const response = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY');
         
-        if (!response.ok) throw new Error('Proxy yanıt vermedi');
+        if (!response.ok) throw new Error('Döviz servisi yanıt vermedi');
         
-        const dataWrapper = await response.json();
-        // Proxy'den gelen veri 'contents' içinde string olarak gelir, onu JSON'a çeviriyoruz
-        const json = JSON.parse(dataWrapper.contents);
-        
-        const usdData = json["ABD DOLARI"];
-        
-        // "Satış" değeri Döviz Satış kurunu temsil eder
-        if (usdData && (usdData["Satış"] || usdData["Satis"])) {
-          const rawRate = usdData["Satış"] || usdData["Satis"];
-          const rate = parseFloat(String(rawRate).replace(',', '.'));
-          
-          if (!isNaN(rate) && rate > 0) {
-            setUsdRateStr(rate.toFixed(2).replace('.', ','));
-          }
+        const json = await response.json();
+        const rate = json.rates.TRY;
+
+        if (rate) {
+          // Gelen rakamı (örn: 32.451) 32,45 formatına çeviriyoruz
+          setUsdRateStr(rate.toFixed(2).replace('.', ','));
+          console.log("Kur Güncellendi: ", rate);
         }
       } catch (error) {
-        console.error("Kur çekilirken hata oluştu (CORS veya Veri Hatası):", error);
+        console.error("Döviz kuru çekilemedi, varsayılan değer (44.33) kullanılıyor.");
       }
     };
 
-    fetchTcmbRate();
+    fetchRate();
   }, []);
 
   const chartData = useMemo(() => {
@@ -119,7 +111,7 @@ export function Dashboard({ data, onSelectSegment }: DashboardProps) {
 
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3"><DollarSign className="w-5 h-5 text-amber-500" /><div className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">Döviz Satış</div></div>
+            <div className="flex items-center gap-3"><DollarSign className="w-5 h-5 text-amber-500" /><div className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">Dolar Kuru</div></div>
             <button onClick={() => setIsUsdActive(!isUsdActive)} className={`h-6 w-11 rounded-full ${isUsdActive ? 'bg-emerald-500' : 'bg-slate-200'} transition-colors cursor-pointer`}>
               <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${isUsdActive ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
