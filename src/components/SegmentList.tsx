@@ -23,4 +23,73 @@ export function SegmentList({ segment, data, onBack, onSelectCustomer }: Segment
       if (seg === 'legal') return s.includes('legal');
       return false;
     });
-    return filtered.sort((a, b) =>
+    return filtered.sort((a, b) => 
+      segment.toLowerCase().includes('health') 
+        ? parseToFloat(b.catiLimit) - parseToFloat(a.catiLimit) 
+        : String(a.musteriNo).localeCompare(String(b.musteriNo), undefined, { numeric: true })
+    );
+  }, [data, segment]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: 20 }} 
+      animate={{ opacity: 1, x: 0 }} 
+      className="space-y-6 max-w-full overflow-hidden"
+    >
+      <div className="flex items-center gap-3 sm:gap-4 px-1">
+        <button 
+          onClick={onBack} 
+          className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 active:scale-90 transition-transform"
+        >
+          <ArrowLeft className="w-5 h-5 text-slate-600" />
+        </button>
+        <h2 className="text-xl sm:text-3xl font-light text-slate-900 truncate">
+          {segment} <span className="hidden sm:inline">Segmenti</span>
+        </h2>
+        <span className="ml-auto bg-indigo-50 text-indigo-600 py-1 px-3 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-indigo-100 whitespace-nowrap">
+          {sortedData.length} Müşteri
+        </span>
+      </div>
+
+      <div className="grid gap-3 sm:gap-4">
+        {sortedData.map((customer) => (
+          <div 
+            key={customer.musteriNo} 
+            onClick={() => onSelectCustomer(customer)} 
+            className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer flex items-center justify-between gap-3 group overflow-hidden"
+          >
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
+                <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base sm:text-xl font-light text-slate-900 truncate pr-2">
+                  {customer.musteriAdi}
+                </h3>
+                <p className="text-[10px] sm:text-sm text-slate-500 font-medium tracking-tight">
+                  Müşteri No: {customer.musteriNo}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 sm:gap-6">
+              <div className="bg-slate-50/80 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-right shrink-0 border border-slate-100">
+                <div className="text-[8px] sm:text-xs font-bold text-slate-400 uppercase tracking-tighter">Çatı Limit</div>
+                <div className="text-xs sm:text-xl font-light text-slate-900 whitespace-nowrap">
+                  {formatCurrency(customer.catiLimit)}
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 hidden sm:block" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {sortedData.length === 0 && (
+        <div className="text-center py-20 text-slate-400 italic font-light">
+          Bu segmentte kayıt bulunamadı.
+        </div>
+      )}
+    </motion.div>
+  );
+}
