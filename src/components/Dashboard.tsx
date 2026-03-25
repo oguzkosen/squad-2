@@ -11,31 +11,40 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data, onSelectSegment }: DashboardProps) {
-  // Varsayılan değer 44,33
+  // Varsayılan değer (API başarısız olursa bu görünür)
   const [usdRateStr, setUsdRateStr] = useState<string>('44.33'); 
   const [isUsdActive, setIsUsdActive] = useState<boolean>(false);
   
   const usdRate = parseFloat(usdRateStr.replace(',', '.')) || 1;
 
-  // TCMB "Döviz Satış" Kurunu Çekme
+  // TCMB "Döviz Satış" Kurunu Truncgil API üzerinden çekme
   useEffect(() => {
     const fetchTcmbRate = async () => {
       try {
-        const response = await fetch('https://hasanadiguzel.com.tr/api/kurgetir');
+        // Truncgil API daha stabil ve CORS dostudur
+        const response = await fetch('https://finans.truncgil.com/today.json');
+        if (!response.ok) throw new Error('API yanıt vermedi');
+        
         const json = await response.json();
         
-        // TCMB verileri içinden USD'yi bul
-        const usdData = json.TCMB_AnlikKurArsiv.find((item: any) => item.CurrencyName === "US DOLLAR");
+        // Truncgil API yapısında dolar "ABD DOLARI" anahtarı altındadır
+        // "Satış" değeri Döviz Satış kurunu temsil eder
+        const usdData = json["ABD DOLARI"];
         
-        // ForexSelling = Döviz Satış kurudur
-        if (usdData && usdData.ForexSelling) {
-          const rate = parseFloat(usdData.ForexSelling);
-          setUsdRateStr(rate.toFixed(2).replace('.', ','));
+        if (usdData && usdData["Satış"]) {
+          const rawRate = usdData["Satış"];
+          // Gelen veri string ise (örn: "44.3512") float'a çevirip düzenliyoruz
+          const rate = parseFloat(String(rawRate).replace(',', '.'));
+          if (!isNaN(rate)) {
+            setUsdRateStr(rate.toFixed(2).replace('.', ','));
+            console.log("Güncel Kur Başarıyla Çekildi:", rate);
+          }
         }
       } catch (error) {
-        console.error("TCMB Kuru çekilemedi:", error);
+        console.error("Kur çekilirken hata oluştu, varsayılan değer kullanılıyor:", error);
       }
     };
+
     fetchTcmbRate();
   }, []);
 
